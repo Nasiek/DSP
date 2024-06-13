@@ -2,10 +2,8 @@ clear;
 close all;
 clc;
 
-% This is a shell script that gives a structure that can be used to train a NN on the FASHION MNIST
-% dataset. Many lines and some functions are not filled in yet. Finish this
-% script to be able to train your neural network and produce the requested
-% deliverables. Provide additional comments to your code.
+% NN Model that can be used for the following questions
+gives 92% asccuracy and prints out the predicted images and the Cross Entropy CE loss over the iterations.
 
 % Load Fashion MNIST data
 run('Fashion_MNIST.m');
@@ -49,27 +47,27 @@ for epoch=1:no_epochs
         [X_batch, Y_batch] = batch(X_train,Y_train,batch_size,batch_nr); % FUNCTION AT THE BOTTOM OF SCRIPT
         
         % forward pass
-        a0 = X_batch;
-        z1 = W1 * a0 + b1;
-        a1 = sigmoid(z1);       
-        z2 = ... 
-        a2 = ...           % Sigmoid (implement at bottom of the script)
-        z3 = ...
-        a3 = ...           % Softmax (implement at bottom of the script
+        a0 = X_batch; %activation 0
+        z1 = W1 * a0 + b1; %weight 0
+        a1 = sigmoid(z1);  %activation 1
+        z2 = W2 * a1 + b2;  %weight 1
+        a2 = sigmoid(z2);           % Sigmoid (implement at bottom of the script)
+        z3 = W3 * a2 + b3;
+        a3 = softmax(z3);           % Softmax (implement at bottom of the script
         
         % backward pass
         dz3 = a3 - Y_batch;
-        dz2 = ...
-        dz1 = ...
+        dz2 = (W3' * dz3) .* sigmoid_diff(z2);
+        dz1 = (W2' * dz2) .* sigmoid_diff(z1);
 
         % gradient descent step / update weights and biases  
         W1 = W1 - pre_factor * dz1 * a0';
-        W2 = ...
-        W3 = ...
+        W2 = W2 - pre_factor * dz2 * a1';
+        W3 = W3 - pre_factor * dz3 * a2';
         
         b1 = b1 - pre_factor * sum(dz1,2);
-        b2 = ...
-        b3 = ...
+        b2 = b2 - pre_factor * sum(dz2,2);
+        b3 = b3 - pre_factor * sum(dz3,2);
         
         batch_nr = batch_nr + 1;
     end
@@ -77,9 +75,12 @@ for epoch=1:no_epochs
     % for each epoch evaluate the network performance
     % compute accuracy and the loss of both train- and testset
     a0 = X_train;
-    a1 = ...
-    a2 = ...
-    a3 = ...
+    z1= W1 * a0 + b1;
+    a1 = sigmoid(z1);
+    z2= W2 * a1 + b2;
+    a2 = sigmoid(z2);
+    z3 = W3 * a2 +b3;
+    a3 = softmax(z3);
     
     acc_train = 100 * accuracy(Y_train,a3); % FUNCTION AT BOTTOM OF SCRIPT
     ln = log(a3);
@@ -87,14 +88,17 @@ for epoch=1:no_epochs
     losses_train(epoch) = loss_train;
 
     % Repeat for the test data:
-    a0 = ...
-    a1 = ...
-    a2 = ...
-    a3 = ...
+    a0 = X_test;
+    z1 = W1 * a0 + b1;
+    a1 = sigmoid(z1);
+    z2 = W2 * a1 +b2;
+    a2 = sigmoid(z2);
+    z3=W3 * a2 +b3;
+    a3 = softmax(z3);
     
-    acc_test = ...
-    ln = ...
-    loss_test = ...  % y is hot-one encoded so only terms where y=1 need to be considered
+    acc_test = 100 * accuracy(Y_test,a3);
+    ln = log(a3);
+    loss_test = -mean(ln(Y_test==1));  % y is hot-one encoded so only terms where y=1 need to be considered
     losses_test(epoch) = loss_test;
 
     report_text = 'Epoch nr %d|%d Train Accuracy: %.1f Test Accuracy %.1f Train loss: %.2e Test loss: %.2e \n';
@@ -102,19 +106,27 @@ for epoch=1:no_epochs
 end
 
 %% Plotting losses
-figure;semilogy(1:no_epochs,losses_train,1:no_epochs,losses_test);
-xlabel('iteration');ylabel('CE loss');legend('training set','testing set');grid on
+figure;
+semilogy(1:no_epochs,losses_train,1:no_epochs,losses_test);
+xlabel('iteration');
+ylabel('CE loss');
+legend('training set','testing set');
+grid on
 
 %% Check the prediction of 10 random images
-figure;tiledlayout(2,5)
+figure;
+tiledlayout(2,5);
 for i=1:10
     rand_image = randi(size(X_test,2));
     a0 = X_test(:,rand_image);
-    a1 = ...
-    a2 = ...
-    a3 = ...
-    prediction = ...
-    nexttile
+    z1 = W1 * a0 + b1;
+    a1 = sigmoid(z1);
+    z2 = W2 * a1 + b2;
+    a2 = sigmoid(z2);
+    z3 = W3 * a2 + b3;
+    a3 = softmax(z3);
+    [~,prediction] = max(a3);
+    nexttile;
     image(test.images(:,:,rand_image)*255)
     title(['Prediction: ', int2str(prediction)])
 end
@@ -158,22 +170,28 @@ end
 function Y_encoded = my_onehotencode(Y,min,max)
 % Returns a matrix with row wise stacking of one-hot-encoding of the contents of Y given 
 % a certain minimum value and maximum value to be encoded
-    ...
+% One-hot encode labels
+    num_classes = max - min + 1;
+    Y_encoded = zeros(num_classes,length(Y));
+    for i = 1:length(Y)
+        Y_encoded(Y(i) - min + 1,i) =1;
+    end
 end
+
 
 function s = sigmoid(z)
 % Sigmoid function
-    s = ...
+    s = 1 ./ (1+ exp(-z));
 end
 
 function diff = sigmoid_diff(z)
 % Derivative of the sigmoid function
-    s = ...
-    diff = ...
+    s = sigmoid(z);
+    diff = s .* (1-s);
 end
 
 function res = softmax(z)
 % Softmax function
-    exp_z = ...
-    res = ...
+    exp_z = exp(z);
+    res = exp_z ./ sum(exp_z,1);
 end
